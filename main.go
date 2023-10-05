@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type Client interface {
@@ -29,9 +30,7 @@ type message struct {
 	Content string `json:"content"`
 }
 
-func Loop(reader io.Reader, outCh chan string, erChan chan error) {}
-
-func SSERead(reader io.Reader, writer io.Writer) error {
+func SSERead(reader io.Reader, handler func(b []byte) error) error {
 
 	chEve := make(chan string)
 	chErr := make(chan error)
@@ -75,8 +74,7 @@ func SSERead(reader io.Reader, writer io.Writer) error {
 			}
 			return err
 		case msg := <-chEve:
-			_, err := writer.Write([]byte(msg + "\n"))
-			if err != nil {
+			if err := handler([]byte(msg + "\n")); err != nil {
 				return err
 			}
 		}
@@ -126,7 +124,22 @@ func (c *ChatGPT) Chat(input string) (string, error) {
 	}
 	defer res.Body.Close()
 
-	if err := SSERead(res.Body, os.Stdout); err != nil {
+	header := "data:"
+	h := func(b []byte) error {
+		w := os.Stdout
+		if strings.HasPrefix(string(b), header) {
+			b = []byte(strings.TrimPrefix(string(b), header))
+		}
+		if string(b) == " [DONE]\n" { // TODO: trim space and \n
+			return io.EOF
+		}
+		if _, err := w.Write(b); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := SSERead(res.Body, h); err != nil {
 		return "", fmt.Errorf("failed to read SSE: %w", err)
 	}
 
