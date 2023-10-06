@@ -76,7 +76,7 @@ func SSERead(reader io.Reader, handler func(b []byte) error) error {
 			}
 			return err
 		case event := <-chEve:
-			if err := handler([]byte(event + "\n")); err != nil {
+			if err := handler([]byte(event)); err != nil {
 				return err
 			}
 		}
