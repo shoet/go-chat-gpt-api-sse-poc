@@ -37,15 +37,19 @@ func SplitScanner(r io.Reader, sep string) *bufio.Scanner {
 	scanner.Buffer(make([]byte, initBufferSize), maxBufferSize)
 	split := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		if atEOF && len(data) == 0 {
+			// 終了
 			return 0, nil, nil
 		}
-		lennbefore := bytes.Index(data, []byte(sep))
-		if lennbefore >= 0 {
-			return lennbefore + len(sep), data[0:lennbefore], nil
+		beforeSep := bytes.Index(data, []byte(sep)) // 最初sepの直前
+		if beforeSep >= 0 {
+			// 最初のsepの位置, dataのsepの直前までのスライス, nil
+			return beforeSep + len(sep), data[0:beforeSep], nil
 		}
 		if atEOF {
+			// 残りのすべて
 			return len(data), data, nil
 		}
+		// 終了
 		return 0, nil, nil
 	}
 	scanner.Split(split)
